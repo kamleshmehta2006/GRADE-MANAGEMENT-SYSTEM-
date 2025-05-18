@@ -1,0 +1,141 @@
+def get_grade(mark):
+    """Return the grade for a given mark based on fixed criteria."""
+    if mark >= 90:
+        return "A"
+    elif mark >= 80:
+        return "B"
+    elif mark >= 70:
+        return "C"
+    elif mark >= 60:
+        return "D"
+    else:
+        return "FAIL"
+
+def add_student():
+    """Validate inputs, calculate grades, and add the student record."""
+    name = entry_name.get().strip()
+    roll = entry_roll.get().strip()
+    email = entry_email.get().strip()
+    section = section_var.get().strip()
+    phys_text = entry_physics.get().strip()
+    chem_text = entry_chem.get().strip()
+    math_text = entry_maths.get().strip()
+
+    # Validate required fields.
+    if not name:
+        messagebox.showerror("Input Error", "Please enter the student's name.")
+        return
+    if not roll:
+        messagebox.showerror("Input Error", "Please enter the student's roll number.")
+        return
+    if not email:
+        messagebox.showerror("Input Error", "Please enter the student's email.")
+        return
+    if not section:
+        messagebox.showerror("Input Error", "Please select a section.")
+        return
+
+    # Basic email validation
+    if "@" not in email or "." not in email:
+        messagebox.showerror("Input Error", "Please enter a valid email address.")
+        return
+
+    try:
+        physics = float(phys_text)
+        chemistry = float(chem_text)
+        maths = float(math_text)
+    except ValueError:
+        messagebox.showerror("Input Error", "Please enter valid numeric values for marks.")
+        return
+
+    if not (0 <= physics <= 100 and 0 <= chemistry <= 100 and 0 <= maths <= 100):
+        messagebox.showerror("Input Error", "Please enter marks between 0 and 100 for all subjects.")
+        return
+
+    # Calculate individual subject grades.
+    physics_grade = get_grade(physics)
+    chemistry_grade = get_grade(chemistry)
+    maths_grade = get_grade(maths)
+
+    # Calculate overall average and grade.
+    average = (physics + chemistry + maths) / 3
+    overall_grade = get_grade(average)
+
+    # Create the student record.
+    student_data = {
+        "Student Name": name,
+        "Roll Number": roll,
+        "Email": email,
+        "Section": section,
+        "Physics": physics,
+        "Physics Grade": physics_grade,
+        "Chemistry": chemistry,
+        "Chemistry Grade": chemistry_grade,
+        "Maths": maths,
+        "Maths Grade": maths_grade,
+        "Average": average,
+        "Overall Grade": overall_grade,
+    }
+    student_records.append(student_data)
+
+    # Update the Treeview according to the current filter.
+    try:
+        selection = filter_listbox.curselection()
+        if selection:
+            filter_value = filter_listbox.get(selection[0])
+        else:
+            filter_value = "All"
+    except NameError:
+        filter_value = "All"
+    update_treeview(filter_value)
+
+    # Clear the input fields.
+    entry_name.delete(0, tk.END)
+    entry_roll.delete(0, tk.END)
+    entry_email.delete(0, tk.END)
+    entry_physics.delete(0, tk.END)
+    entry_chem.delete(0, tk.END)
+    entry_maths.delete(0, tk.END)
+    section_var.set("A")
+
+# Entry form setup
+ttk.Label(entry_frame, text="Enter Student Details", font=("Helvetica", 14, "bold")).grid(
+    row=0, column=0, columnspan=2, pady=10
+)
+
+ttk.Label(entry_frame, text="Student Name:").grid(row=1, column=0, sticky="E", pady=5)
+entry_name = ttk.Entry(entry_frame, width=30)
+entry_name.grid(row=1, column=1, pady=5)
+
+ttk.Label(entry_frame, text="Roll Number:").grid(row=2, column=0, sticky="E", pady=5)
+entry_roll = ttk.Entry(entry_frame, width=30)
+entry_roll.grid(row=2, column=1, pady=5)
+
+ttk.Label(entry_frame, text="Email:").grid(row=3, column=0, sticky="E", pady=5)
+entry_email = ttk.Entry(entry_frame, width=30)
+entry_email.grid(row=3, column=1, pady=5)
+
+ttk.Label(entry_frame, text="Section:").grid(row=4, column=0, sticky="E", pady=5)
+section_var = tk.StringVar()
+section_combobox = ttk.Combobox(
+    entry_frame, textvariable=section_var, values=list(string.ascii_uppercase), state="readonly", width=28
+)
+section_combobox.grid(row=4, column=1, pady=5)
+section_combobox.set("A")
+
+ttk.Label(entry_frame, text="Physics Marks:").grid(row=5, column=0, sticky="E", pady=5)
+entry_physics = ttk.Entry(entry_frame, width=30)
+entry_physics.grid(row=5, column=1, pady=5)
+
+ttk.Label(entry_frame, text="Chemistry Marks:").grid(row=6, column=0, sticky="E", pady=5)
+entry_chem = ttk.Entry(entry_frame, width=30)
+entry_chem.grid(row=6, column=1, pady=5)
+
+ttk.Label(entry_frame, text="Maths Marks:").grid(row=7, column=0, sticky="E", pady=5)
+entry_maths = ttk.Entry(entry_frame, width=30)
+entry_maths.grid(row=7, column=1, pady=5)
+
+btn_frame = ttk.Frame(entry_frame)
+btn_frame.grid(row=8, column=0, columnspan=2, pady=10)
+btn_add_student = ttk.Button(btn_frame, text="Add Student", command=add_student)
+btn_add_student.grid(row=0, column=0, padx=5)
