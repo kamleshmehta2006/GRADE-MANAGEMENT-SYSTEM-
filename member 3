@@ -1,0 +1,90 @@
+def update_treeview(filter_section="All"):
+    """Update the Treeview to display student records filtered by section."""
+    # Clear current items in the Treeview.
+    for item in student_tree.get_children():
+        student_tree.delete(item)
+    # Reinsert records that match the selected section filter.
+    for record in student_records:
+        if filter_section == "All" or record["Section"] == filter_section:
+            # Insert the record into the treeview
+            item_id = student_tree.insert(
+                "",
+                "end",
+                values=(
+                    record["Student Name"],
+                    record["Roll Number"],
+                    record["Email"],
+                    record["Section"],
+                    record["Physics"],
+                    record["Physics Grade"],
+                    record["Chemistry"],
+                    record["Chemistry Grade"],
+                    record["Maths"],
+                    record["Maths Grade"],
+                    f"{record['Average']:.2f}",
+                    record["Overall Grade"],
+                ),
+            )
+            
+            # If average is less than 60, highlight the row in red
+            if record["Average"] < 60:
+                student_tree.item(item_id, tags=("low_avg",))
+
+def on_filter_select(event):
+    """Callback triggered when a section is selected from the Listbox."""
+    selection = filter_listbox.curselection()
+    if selection:
+        filter_value = filter_listbox.get(selection[0])
+        update_treeview(filter_value)
+
+# Records display setup
+ttk.Label(records_frame, text="Student Records", font=("Helvetica", 14, "bold")).grid(
+    row=0, column=0, columnspan=2, pady=10
+)
+
+# Create the Listbox for filtering by section.
+filter_label = ttk.Label(records_frame, text="Select Section:")
+filter_label.grid(row=1, column=0, sticky="nw")
+filter_listbox = tk.Listbox(records_frame, height=10, exportselection=0)
+filter_listbox.insert(tk.END, "All")
+for letter in string.ascii_uppercase:
+    filter_listbox.insert(tk.END, letter)
+filter_listbox.grid(row=2, column=0, sticky="n", padx=(0, 10))
+filter_listbox.bind("<<ListboxSelect>>", on_filter_select)
+filter_listbox.select_set(0)  # Default selection is "All"
+filter_listbox.event_generate("<<ListboxSelect>>")
+
+# Create the Treeview to display student records.
+columns = (
+    "Student Name", "Roll Number", "Email", "Section",
+    "Physics", "Phy Grade", "Chemistry", "Chem Grade",
+    "Maths", "Math Grade", "Average", "Overall Grade"
+)
+student_tree = ttk.Treeview(records_frame, columns=columns, show="headings", height=15)
+for col in columns:
+    student_tree.heading(col, text=col)
+    student_tree.column(col, anchor="center", width=90)
+
+# Add cursor change for email column to indicate clickable
+student_tree.column("Email", anchor="center", width=150)  # Make email column wider
+
+# Configure tag for students with low average (less than 60)
+student_tree.tag_configure("low_avg", background="#ffcccc", foreground="red")
+
+student_tree.grid(row=1, column=1, rowspan=2, sticky="nsew")
+
+# Attach a vertical scrollbar to the Treeview.
+scrollbar = ttk.Scrollbar(records_frame, orient="vertical", command=student_tree.yview)
+student_tree.configure(yscroll=scrollbar.set)
+scrollbar.grid(row=1, column=2, rowspan=2, sticky="ns")
+
+# Create legend for the highlighting
+highlight_frame = ttk.Frame(records_frame)
+highlight_frame.grid(row=5, column=1, pady=(0, 5), sticky="w")
+
+highlight_sample = ttk.Label(highlight_frame, text="  ", background="#ffcccc", relief="solid", width=2)
+highlight_sample.pack(side="left", padx=(0, 5))
+
+highlight_text = ttk.Label(highlight_frame, text="Students with average below 60", 
+                          font=("Helvetica", 9, "italic"), foreground="red")
+highlight_text.pack(side="left")
