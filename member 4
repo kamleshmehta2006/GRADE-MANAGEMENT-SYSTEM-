@@ -1,0 +1,220 @@
+def export_sections_to_csv():
+    """
+    Export student records into separate CSV files for each section.
+    The user will select a folder. For each section (e.g., A, B, etc.)
+    that has records, a CSV file named "Section_<Letter>.csv" will be created.
+    """
+    if not student_records:
+        messagebox.showerror("Export Error", "No student records available. Add a student first!")
+        return
+
+    folder_path = filedialog.askdirectory(title="Select Folder to Save CSV Files")
+    if not folder_path:
+        return
+
+    # Group records by section.
+    sections = {}
+    for record in student_records:
+        sec = record["Section"]
+        if sec not in sections:
+            sections[sec] = []
+        sections[sec].append(record)
+    
+    # For each section, write a CSV file.
+    for sec, records in sections.items():
+        filepath = f"{folder_path}/Section_{sec}.csv"
+        try:
+            with open(filepath, "w", newline="") as csvfile:
+                fieldnames = [
+                    "Student Name", "Roll Number", "Email", "Section",
+                    "Physics", "Physics Grade", "Chemistry", "Chemistry Grade",
+                    "Maths", "Maths Grade", "Average", "Overall Grade"
+                ]
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                for rec in records:
+                    writer.writerow({
+                        "Student Name": rec["Student Name"],
+                        "Roll Number": rec["Roll Number"],
+                        "Email": rec["Email"],
+                        "Section": rec["Section"],
+                        "Physics": rec["Physics"],
+                        "Physics Grade": rec["Physics Grade"],
+                        "Chemistry": rec["Chemistry"],
+                        "Chemistry Grade": rec["Chemistry Grade"],
+                        "Maths": rec["Maths"],
+                        "Maths Grade": rec["Maths Grade"],
+                        "Average": f"{rec['Average']:.2f}",
+                        "Overall Grade": rec["Overall Grade"],
+                    })
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to export records for section {sec}: {e}")
+            return
+    messagebox.showinfo("Export Successful", f"Records exported successfully to folder:\n{folder_path}")
+
+def on_treeview_click(event):
+    """Handle click events on the Treeview to enable email linking."""
+    region = student_tree.identify_region(event.x, event.y)
+    
+    if region == "cell":
+        # Get the row and column that was clicked
+        row_id = student_tree.identify_row(event.y)
+        col_id = student_tree.identify_column(event.x)
+        
+        # Column #3 is the Email column (index 2 in the values tuple)
+        if col_id == "#3":  # Email column
+            # Get all values for the clicked row
+            values = student_tree.item(row_id, 'values')
+            if values:
+                email = values[2]  # Email is at index 2
+                student_name = values[0]  # Student name is at index 0
+                average = float(values[10])  # Average is at index 10
+                
+                if email:
+                    try:
+                        # Check if student average is below 60
+                        if average < 60:
+                            # Create email with improvement message
+                            subject = "Important: Academic Performance Concern"
+                            body = create_improvement_email_body(student_name, average, values[4], values[6], values[8])
+                            
+                            # URL encode the subject and body
+                            subject_encoded = urllib.parse.quote(subject)
+                            body_encoded = urllib.parse.quote(body)
+                            
+                            # Open email client with pre-populated content
+                            webbrowser.open(f"mailto:{email}?subject={subject_encoded}&body={body_encoded}")
+                        else:
+                            # Regular email without template for students with good performance
+                            webbrowser.open(f"mailto:{email}")
+                    except Exception as e:
+                        messagebox.showerror("Email Error", f"Could not open email client: {e}")
+
+def create_improvement_email_body(student_name, average, physics, chemistry, maths):
+    """Create the body text for improvement emails."""
+    body = f"""Dear {student_name},
+
+I am writing to inform you that your current academic performance requires immediate attention. Your average score across Physics, Chemistry, and Mathematics is {average:.2f}%, which is below the passing threshold of 60%.
+
+Here is a breakdown of your current marks:
+- Physics: {physics}/100
+- Chemistry: {chemistry}/100
+- Mathematics: {maths}/100
+
+I would like to schedule a meeting to discuss strategies for improvement. Please reply to this email with your available times for a consultation.
+
+Remember that academic support resources are available, including:
+- Tutorial sessions every Wednesday and Friday
+- Study guides on the school portal
+- Peer tutoring program
+
+With dedicated effort and proper support, I believe you can significantly improve your performance.
+
+Best regards,
+[Teacher's Name]
+"""
+    return body
+
+def email_all_low_performers():
+    """Email all students with average below 60%."""
+    # Find all students with low averages from the currently filtered section
+    low_performers = []
+    
+    selection = filter_listbox.curselection()
+    if selection:
+        current_filter = filter_listbox.get(selection[0])
+    else:
+        current_filter = "All"
+    
+    for record in student_records:
+        if record["Average"] < 60:
+            # Apply current section filter
+            if current_filter == "All" or record["Section"] == current_filter:
+                low_performers.append(record)
+    
+    if not low_performers:
+        messagebox.showinfo("Information", "No students with averages below 60% found in the current filter.")
+        return
+    
+    # Ask for confirmation with the count of students
+    confirm = messagebox.askyesno(
+        "Confirmation", 
+        f"You are about to send emails to {len(low_performers)} students with averages below 60%. Continue?"
+    )
+    
+    if not confirm:
+        return
+    
+    # Create a single email with all low-performing students in BCC
+    emails = [record["Email"] for record in low_performers]
+    bcc_list = ",".join(emails)
+    
+    # Create a generic email for multiple recipients
+    subject = "Important: Academic Performance Concerns"
+    body = """Dear Students,
+
+I am writing to inform you that your current academic performance requires immediate attention. Your average scores across Physics, Chemistry, and Mathematics are below the passing threshold of 60%.
+
+Please check your individual grades in the student portal.
+
+I would like to schedule meetings to discuss strategies for improvement. Please reply to this email with your available times for a consultation.
+
+Remember that academic support resources are available, including:
+- Tutorial sessions every Wednesday and Friday
+- Study guides on the school portal
+- Peer tutoring program
+
+With dedicated effort and proper support, I believe you can significantly improve your performance.
+
+Best regards,
+[Teacher's Name]
+"""
+    
+    try:
+        # URL encode the subject and body
+        subject_encoded = urllib.parse.quote(subject)
+        body_encoded = urllib.parse.quote(body)
+        
+        # Open email client with pre-populated content and BCC list
+        webbrowser.open(f"mailto:?bcc={bcc_list}&subject={subject_encoded}&body={body_encoded}")
+        
+        # Show confirmation
+        messagebox.showinfo(
+            "Email Initiated", 
+            f"An email draft has been created for {len(low_performers)} students. Your email client should now open."
+        )
+    except Exception as e:
+        messagebox.showerror("Email Error", f"Could not open email client: {e}")
+
+# Bind click event to the Treeview
+student_tree.bind("<ButtonRelease-1>", on_treeview_click)
+
+# Export button setup
+btn_export_sections = ttk.Button(btn_frame, text="Export Section-wise CSV", command=export_sections_to_csv)
+btn_export_sections.grid(row=0, column=1, padx=5)
+
+# Create a frame for email functionality buttons
+email_btn_frame = ttk.Frame(records_frame)
+email_btn_frame.grid(row=3, column=1, pady=(5, 0), sticky="w")
+
+# Add "Email All Low Performers" button
+btn_email_all = ttk.Button(
+    email_btn_frame, 
+    text="Email All Low Performers", 
+    command=email_all_low_performers,
+    style="Accent.TButton"  # Custom style for emphasis
+)
+btn_email_all.pack(side="left", padx=(0, 10))
+
+# Create custom style for the button
+style.configure("Accent.TButton", background="#ff6b6b", foreground="black")
+
+# Create help label to indicate email linking feature
+email_help_label = ttk.Label(email_btn_frame, text="or click on any student's email to send individual messages", 
+                             font=("Helvetica", 9, "italic"), foreground="blue")
+email_help_label.pack(side="left")
+
+# Create additional help text for auto-generated emails
+email_template_label = ttk.Label(records_frame, text="Emails for students with low averages include an auto-generated improvement message", 
+                              font=("Helvetica", 9, "italic"), foreground="blue")
+email_template_label.grid(row=4, column=1, pady=(5, 5), sticky="w")
